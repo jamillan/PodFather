@@ -25,10 +25,10 @@ import tweepy
 import random
 #from our keys module (keys.py), import the keys dictionary
 
-CONSUMER_KEY = "HGsCa24B9jlGFiDpRaBemTyjj"
-CONSUMER_SECRET = "BA87yf8QyolGnTUmHEc07A1ZfnKbmHa6GfMRj3tBEJ8lWMFGPH"
-ACCESS_TOKEN = "1006801061754097664-I7ziYNHGJ3ydUPgtEP0wYEvTBYuWJz"
-ACCESS_TOKEN_SECRET = "Xz3kwLMXd7UYDpkyjNMfXn5ATnW3njLNVuybST3ci5v3k"
+CONSUMER_KEY = "my CONSUMER_KEY"
+CONSUMER_SECRET = "my CONSUMER_SECRET"
+ACCESS_TOKEN = "my ACCESS TOKEN"
+ACCESS_TOKEN_SECRET = "my ACCESS TOKEN SECRET" 
 
 #CONSUMER_KEY = "tNq5rXzQtpCfQN5SqhvYDjx84"
 #CONSUMER_SECRET = "3KTXCM4jVgizY1MCPHCm02oxV21OBMdX2jGAfY7mZ27aSbwveF"
@@ -176,65 +176,42 @@ tfidf_train = tfidf_vectorizer.fit_transform(data)
 
 def get_from_tfidf(user ='kanyewest'):
     user_tweets = pd.read_csv(user + '_tweets.csv')
-    user_tweets = user_tweets.text.values[1:10]
-   
-     
-        
-
-    podcast_descriptions = []
-    max_vals_idx_list = []
+    user_tweets = user_tweets.text.values[:10]
     
-    
-   
+    print(user_tweets)
     all_X_test = tfidf_vectorizer.transform(user_tweets)
-    
     
     weights = range(1,len(all_X_test.A));
     weights = sorted(weights,reverse=True)
+    
 
-    X_test = all_X_test;
+    X_test = tfidf_vectorizer.transform(user_tweets)
+    final_vect = X_test[0]
+    
+    podcast_descriptions = []
+    final_urls = []
     
     
-    for idx,tweet_X in enumerate(all_X_test):
-        break
+    for idx,vec_X in enumerate(X_test[:]):
+        
+    
+       # weight = weights[idx]
 
-        weight = weights[idx]
-
-        new_X = 1.0 *tweet_X
-        X_test = X_test + new_X
-
-
-
-    for V in all_X_test:
-        #norm = np.sum(X_test.A**2.0)
-        #norm = norm**0.5
-
-        #X_test /= norm
-        tfidf_test = V
-
-        # Get the cosine similarity between tweet and podcast
-        a= np.dot(tfidf_test,tfidf_train.T)
-        #print("cosine sim. values : " +str(a.A))
-        #sort the index from closest to fartherst
+        final_vect = vec_X + final_vect
+    
+        a= np.dot(vec_X,tfidf_train.T)
         a_sort = np.argsort(a.A)
-        #print("index from closest to farthest away : "  + str(a_sort))
-
-        max_vals_idx =  a_sort.flatten()[::-1][:5]
+        max_vals_idx =  a_sort.flatten()[::-1][:10]
         
-      #  podcast_descriptions = []
+        
         for idx in max_vals_idx:
-            
-            podcast_descriptions.append(data[idx]) 
-            
-            max_vals_idx_list.append(idx)
-
-    #print(podcast_descriptions[:10])
+            podcast_descriptions.append(data[idx])
+          
+        urls  = final_df.loc[max_vals_idx].website_url.values.tolist()
+        final_urls = final_urls + random.sample(urls,5)
         
-    urls  = final_df.loc[max_vals_idx_list].website_url.values.tolist()
-    final_urls = random.sample(urls,3)
-
-    return final_urls,podcast_descriptions , max_vals_idx;
-
+    
+    return random.sample(final_urls,3),podcast_descriptions , max_vals_idx;
 
 tfidf_urls, podcast_descriptions, max_vals_idx = get_from_tfidf('BarackObama')
 # Now let's use TF-IDF to:
@@ -269,8 +246,8 @@ def get_from_listen_notes(descriptions):
     features = tfidf_vectorizer.get_feature_names()
 
     buzz_words = []
-    for i in range(10):
-        a = top_feats_in_doc(Xtr, features, row_id=i, top_n=25)
+    for i in range(30):
+        a = top_feats_in_doc(Xtr, features, row_id=i, top_n=50)
         word = a.feature.values.tolist()[0]
         buzz_words.append(word)
 
