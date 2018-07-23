@@ -1,10 +1,10 @@
-
 from __future__ import unicode_literals
 import re
 import numpy as np
 import pandas as pd
 from pprint import pprint
 import random
+import csv
 # Gensim
 import gensim
 import gensim.corpora as corpora
@@ -25,15 +25,12 @@ import tweepy
 import random
 #from our keys module (keys.py), import the keys dictionary
 
+
+
 CONSUMER_KEY = "my CONSUMER_KEY"
 CONSUMER_SECRET = "my CONSUMER_SECRET"
 ACCESS_TOKEN = "my ACCESS TOKEN"
 ACCESS_TOKEN_SECRET = "my ACCESS TOKEN SECRET" 
-
-#CONSUMER_KEY = "tNq5rXzQtpCfQN5SqhvYDjx84"
-#CONSUMER_SECRET = "3KTXCM4jVgizY1MCPHCm02oxV21OBMdX2jGAfY7mZ27aSbwveF"
-#ACCESS_TOKEN = "1003684959419322371-2yvCMWHGhs7S32TIgEY9wV9SziKg11"
-#ACCESS_TOKEN_SECRET = "MyIrkq24K7R7WehRLeRkpVCePbmQB7L56He65gfeaLgAw"
 
 
 auth = tweepy.OAuthHandler(CONSUMER_KEY, CONSUMER_SECRET)
@@ -164,6 +161,82 @@ final_df.content = data
 #- we can use all podcast
 #- it transform data into normalized vectors, perfect for cosine similarity
 
+def get_user_tweets(screen_name):
+    new_tweets = api.user_timeline(screen_name = screen_name,count=15)
+    try:
+        user = api.get_user(screen_name)
+    except tweepy.error.TweepError as e:
+        time.sleep(180)
+        user = api.get_user(screen_name)
+    try:
+        friends = user.friends()
+        
+    except tweepy.error.TweepError as e:
+        time.sleep(180)
+        friends = user.friends()
+    #print(user.screen_name)
+    all_friends = []
+    for friend in friends:
+        all_friends.append(friend.screen_name)
+    
+    alltweets = []
+    if len(new_tweets) < 1:
+        
+        return friends,[]
+    #save most recent tweets
+    
+   
+    
+    
+    alltweets.extend(new_tweets)
+
+    #save the id of the oldest tweet less one
+
+    if len(new_tweets) > 0:
+        
+        oldest = alltweets[-1].id - 1
+
+    #keep grabbing tweets until there are no tweets left to grab
+    while len(new_tweets) < 0:
+        #print "getting tweets before %s" % (oldest)
+
+    #all subsiquent requests use the max_id param to prevent duplicates
+        try:
+            new_tweets = api.user_timeline(screen_name = screen_name,count=200,max_id=oldest)
+                
+        except tweepy.error.TweepError as e:
+            time.sleep(180)
+            new_tweets = api.user_timeline(screen_name = screen_name,count=200,max_id=oldest)
+            
+            
+    #save most recent tweets
+        alltweets.extend(new_tweets)
+
+        #update the id of the oldest tweet less one
+        oldest = alltweets[-1].id - 1
+        
+        #print(oldest)
+
+        #print "...%s tweets downloaded so far" % (len(alltweets))
+
+        #transform the tweepy tweets into a 2D array that will populate the csv 
+    outtweets = [[tweet.id_str, tweet.created_at, tweet.text.encode("utf-8")] for tweet in alltweets]
+    with open('%s_tweets.csv' % screen_name, 'wb') as f:
+        writer = csv.writer(f)
+       # print("writting")
+        writer.writerow(["id","created_at","text"])
+        writer.writerows(outtweets)
+    
+    return all_friends,outtweets
+try:
+    a,b =get_user_tweets('BarackObama')
+
+except tweepy.error.TweepError as e:
+    print('going to sleep')
+    time.sleep(15*60)
+    a,b = get_user_tweets('BarackObama')
+
+
 
 
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -176,9 +249,9 @@ tfidf_train = tfidf_vectorizer.fit_transform(data)
 
 def get_from_tfidf(user ='kanyewest'):
     user_tweets = pd.read_csv(user + '_tweets.csv')
-    user_tweets = user_tweets.text.values[:10]
+    user_tweets = user_tweets.text.values[1:11]
     
-    print(user_tweets)
+   
     all_X_test = tfidf_vectorizer.transform(user_tweets)
     
     weights = range(1,len(all_X_test.A));
@@ -214,6 +287,9 @@ def get_from_tfidf(user ='kanyewest'):
     return random.sample(final_urls,3),podcast_descriptions , max_vals_idx;
 
 tfidf_urls, podcast_descriptions, max_vals_idx = get_from_tfidf('BarackObama')
+
+
+
 # Now let's use TF-IDF to:
 
 #(1) transform the data
@@ -250,7 +326,7 @@ def get_from_listen_notes(descriptions):
         a = top_feats_in_doc(Xtr, features, row_id=i, top_n=50)
         word = a.feature.values.tolist()[0]
         buzz_words.append(word)
-
+        
     final_string = set(buzz_words)
     buzz_words = list(final_string)
     final_string = random.choice(buzz_words)
@@ -258,7 +334,7 @@ def get_from_listen_notes(descriptions):
 
         trial_word = random.choice(buzz_words)
         final_string = final_string + "+" + trial_word
-    print(final_string)
+    
     response = unirest.get("https://listennotes.p.mashape.com/api/v1/search?genre_ids=68%2C100&language=English&len_max=60&len_min=2&offset=0&only_in=Only+search+in+these+fields&published_after=1390190241000&published_before=1490190241000&q=" + final_string + "&sort_by_date=0&type=episode",
       headers={
         "X-Mashape-Key": "2i4tvJvbnFmshAM8KCc4CZaPh7ejp1ZzKA0jsnVI8C398lRK4S",
@@ -276,7 +352,16 @@ def get_from_listen_notes(descriptions):
 
     return response_listen_notes
 
-a = get_from_listen_notes(podcast_descriptions)
+test_lda = get_from_listen_notes(podcast_descriptions)
+
+if len(test_lda) > 0:
+    test_msg = 'user ' + test_lda[0]
+    print(test_msg)
+    
+else:
+    print('empty suggestion')
+    print(test_lda)
+
 
 def split_hashtag(hashtagestring):
     fo = re.compile(r'#[A-Z]{2,}(?![a-z])|[A-Z][a-z]+')
@@ -291,47 +376,70 @@ def split_hashtag(hashtagestring):
 def get_from_hashtag(all_hashtags):
     all_bi_tokens = []
     for h_tag in all_hashtags:
-
+        
         trial_bitoken = split_hashtag(h_tag)
        # print(trial_bitoken)
         if len(trial_bitoken) > 1:
             all_bi_tokens.append(trial_bitoken)
-
-    hash_signal = random.choice(all_bi_tokens)
-    final_hash_signal = hash_signal[0]
-    h_tag_user = "@" + hash_signal[0]
-
-
-
-    Celebrity = True;
-    while Celebrity:
+    
+    
+    HASHTAG_BAD = True
+    while HASHTAG_BAD:
+        hash_signal = random.choice(all_bi_tokens)
+        final_hash_signal = hash_signal[0]
+        h_tag_user = "@" + hash_signal[0]
+        check_hash = hash_signal[0]
+        
         for i in range(1,len(hash_signal)):
+            
             final_hash_signal = final_hash_signal + "+" + hash_signal[i]
             h_tag_user = h_tag_user + hash_signal[i]
-
-        try:
-            user = api.get_user(h_tag_user)
-
-        except tweepy.error.TweepError as e:
-            time.sleep(180)
-            user = api.get_user(h_tag_user)
-        try:
-
-            nbr_friends = user.followers_count
-
-
-        except tweepy.error.TweepError as e:
-            time.sleep(180)
-            nbr_friends = user.followers_count
-
-        if nbr_friends > 1000000:
-            Celebrity = False;
-
+            check_hash = check_hash + hash_signal[i]
+        
+        
+        
+        if check_hash in all_hashtags:
+            
+            HASHTAG_BAD = False;
+            
         else:
-            hash_signal = random.choice(all_bi_tokens)
-            final_hash_signal = hash_signal[0]
-            h_tag_user = "@" + hash_signal[0]
+            
+            
+            
+            return [],None,None
 
+    
+    
+    Celebrity = True;
+    while Celebrity:
+            
+        
+        try:
+            
+            user = api.get_user(h_tag_user)
+            
+        
+        except tweepy.error.TweepError as e:
+            time.sleep(180)
+            user = api.get_user(h_tag_user)
+        try:
+            
+            nbr_friends = user.followers_count
+            
+            
+            
+        except tweepy.error.TweepError as e:
+            time.sleep(180)
+            nbr_friends = user.followers_count
+            
+        if nbr_friends < 1000000:
+            Celebrity = False;
+            return [],None,None
+            
+        else:
+            Celebrity = False
+            
+    
     response = unirest.get("https://listennotes.p.mashape.com/api/v1/search?genre_ids=68%2C110&language=English&len_max=50&len_min=2&offset=0&only_in=Only+search+in+these+fields&published_after=1390190241000&published_before=1490190241000&q=" + final_hash_signal + "&sort_by_date=0&type=episode",
     headers={
     "X-Mashape-Key": "2i4tvJvbnFmshAM8KCc4CZaPh7ejp1ZzKA0jsnVI8C398lRK4S",
@@ -347,70 +455,71 @@ def get_from_hashtag(all_hashtags):
         rand_pod = random.choice(listen_notes_pods)
       #  print(rand_pod)
         response_listen_notes.append(rand_pod[u'audio'])
-
-
+        
+        
     return response_listen_notes, h_tag_user,final_hash_signal
 
-url_hashtag,b,c = get_from_hashtag(["BarackObama"] )
+#print(a)
+
+test_friends,test_twitter = get_user_tweets('BarackObama')
+test_url_hashtag,b,c = get_from_hashtag(test_friends[:2] + [u'BarackObama'])
+
+if len(test_url_hashtag) > 0:
+    test_msg = 'user ' + test_url_hashtag[0]
+    print(test_msg)
+    
+else:
+    print('empty suggestion')
+
+def listen_notes_favorite(n='All'):
+    # These code snippets use an open-source library. http://unirest.io/python
+    response = unirest.get("https://listennotes.p.mashape.com/api/v1/best_podcasts?page=1",
+              headers={
+        "X-Mashape-Key": "2i4tvJvbnFmshAM8KCc4CZaPh7ejp1ZzKA0jsnVI8C398lRK4S",
+    "Accept": "application/json"
+        }
+    )
+
+    listen_notes_pods = response.body['channels']
+   # print(listen_notes_pods[1]['website'])
+    response_listen_notes=[]
+    if len(listen_notes_pods) > 5:
+
+        for i in range(3):
+            response_listen_notes.append(listen_notes_pods[i][u'website'])
+
+    else:
+
+        for i in range(len(listen_notes_pods)):
+            response_listen_notes.append(listen_notes_pods[i][u'website'])
+
+    url_string = str();
+    if n == 'All' or n == 0:
+        
+        for i in response_listen_notes:
+            url_string = url_string + " " + str(i)
+            
+    else:
+        for i in range(n):
+            _url = response_listen_notes[i]
+            url_string = url_string + " " + str(_url)
+    
+    return url_string
+
+test_favorite = listen_notes_favorite()
 
 
-def get_user_tweets(screen_name):
-    new_tweets = api.user_timeline(screen_name = screen_name,count=200)
-    try:
-        user = api.get_user(screen_name)
-    except tweepy.error.TweepError as e:
-        time.sleep(180)
-        user = api.get_user(screen_name)
-    try:
-        friends = user.friends()
-
-    except tweepy.error.TweepError as e:
-        time.sleep(180)
-        friends = user.friends()
-    #print(user.screen_name)
-    all_friends = []
-    for friend in friends:
-        all_friends.append(friend.screen_name)
-
-    alltweets = []
-    if len(new_tweets) < 1:
-
-        return []
-    #save most recent tweets
-    alltweets.extend(new_tweets)
-
-    #save the id of the oldest tweet less one
-
-    if len(new_tweets) > 0:
-
-        oldest = alltweets[-1].id - 1
-
-    #keep grabbing tweets until there are no tweets left to grab
-    while len(new_tweets) > 0:
-        #print "getting tweets before %s" % (oldest)
-
-    #all subsiquent requests use the max_id param to prevent duplicates
-        try:
-            new_tweets = api.user_timeline(screen_name = screen_name,count=200,max_id=oldest)
-
-        except tweepy.error.TweepError as e:
-            time.sleep(180)
-            new_tweets = api.user_timeline(screen_name = screen_name,count=200,max_id=oldest)
+if len(test_favorite) > 0:
+    test_msg = 'user ' + test_favorite
+    print(test_msg)
+    
+else:
+    print('empty suggestion')
+    print(test_favorite)
 
 
-    #save most recent tweets
-        alltweets.extend(new_tweets)
 
-        #update the id of the oldest tweet less one
-        oldest = alltweets[-1].id - 1
 
-        #print(oldest)
-
-        #print "...%s tweets downloaded so far" % (len(alltweets))
-
-        #transform the tweepy tweets into a 2D array that will populate the csv
-    outtweets = [[tweet.id_str, tweet.created_at, tweet.text.encode("utf-8")] for tweet in alltweets]
-    return all_friends,outtweets
 
 def clean_weird_chars(stream_data):
     new_data = []
@@ -585,59 +694,92 @@ def lda_words(descriptions,nbr_words=2):
 
 
 
-def listen_notes_favorite():
-    # These code snippets use an open-source library. http://unirest.io/python
-    response = unirest.get("https://listennotes.p.mashape.com/api/v1/best_podcasts?page=1",
-              headers={
-        "X-Mashape-Key": "2i4tvJvbnFmshAM8KCc4CZaPh7ejp1ZzKA0jsnVI8C398lRK4S",
-    "Accept": "application/json"
-        }
-    )
-
-    listen_notes_pods = response.body['channels']
-   # print(listen_notes_pods[1]['website'])
-    response_listen_notes=[]
-    if len(listen_notes_pods) > 5:
-
-        for i in range(3):
-            response_listen_notes.append(listen_notes_pods[i][u'website'])
-
-    else:
-
-        for i in range(len(listen_notes_pods)):
-            response_listen_notes.append(listen_notes_pods[i][u'website'])
-
-    url_string = str();
-    for i in response_listen_notes:
-        url_string = url_string + " " + str(i)
-
-    return url_string
-
-#Get history of tweets 
-#public_tweets = api.home_timeline()
 #podcast_url = tfidf_urls[0] + " "+ tfidf_urls[1] + " "  +tfidf_urls[2] + " " + url_listen_notes[0] + " " + url_hashtag[0]
 #podcast_url = url_hashtag[0]
-try:
-    public_tweets = api.mentions_timeline()
-except tweepy.error.TweepError as e:
-    time.sleep(180)
-    public_tweets = api.mentions_timeline()
-    
-print(len(public_tweets))
-#look at first tweet only for now
-idx= 0 ;
 
-print("***CREATING TWEETBOT")
+Epsilon = 1e-9;
+def different_timestamp(_stamp1,_stamp2):
+    stamp1= pd.Timestamp(_stamp1)
+    stamp1 = stamp1.to_pydatetime()
+
+    stamp2 = pd.Timestamp(_stamp2)
+    stamp2 = stamp2.to_pydatetime()
+
+
+    if abs(stamp1.year - stamp2.year) > 1e-9:
+            return True;
+    if abs(stamp1.month - stamp2.month) > 1e-9:
+            return True;
+    if abs(stamp1.day - stamp2.day) > 1e-9:
+            return True;
+
+    if abs(stamp1.hour - stamp2.hour) > 1e-9:
+            return True;
+
+    if abs(stamp1.second - stamp2.second) > 1e-9:
+            return True;
+
+    return False
+
+
+def get_last_user(filename='last_user.dat'):
+    my_file = open(filename,'r')
+    line = my_file.readline()
+    user_info =line.split()
+    my_file.close()
+    
+    return user_info[0],user_info[1] + " " + user_info[2]
+
+finalname,finalstamp = get_last_user()
+
+different_timestamp(finalstamp,finalstamp)
+
+
+print("Creating Tweebot")
+
+
+stop_name = str()
 #loop through twwets in timeline
-for i in range(10):
-    print("loop: " + str(i))
+nbr_loops = 0
+initial_time = time.time()
+#for i in range(8000):
+while True:
+ #   if i%1309 ==0:
+    if nbr_loops % 1309==0:
+
+        #print("loop: " + str(i))
+        print("loop in multiple of 4 hours: " + str(int(nbr_loops/1309.)))
+
+    nbr_loops += 1;
+    try:
+        loop_initial_time = time.time()
+        public_tweets = api.mentions_timeline(count=10)
+        time_file = open('time.dat','a')
+        loop_final_time = time.time()
+        time_file.write(str(loop_final_time - loop_initial_time) + "\n")
+        time_file.flush()
+        time_file.close()
+    except tweepy.error.TweepError as e:
+
+        time.sleep(5*60)
+        loop_initial_time = time.time()
+        public_tweets = api.mentions_timeline(count=10)
+        time_file = open('time.dat','a')
+        loop_final_time = time.time()
+        time_file.write(str(loop_final_time - loop_initial_time) + "\n")
+        time_file.flush()
+        time_file.close()
+
+    final_name,finalstamp = get_last_user()
+#    print("finalname " + str(final_name) + " finalstamp " + " " + str(finalstamp) )
+    #print(len(public_tweets))
+    #quit()
     for idx,tweet in enumerate(public_tweets):
-       
+
         #print("found tweet :" + str(idx))
-        print(tweet.text)
+      #  print(tweet.text)
         #break on other tweets
-        if idx >0:
-            break;
+
 
         #split tweet to get username
         try:
@@ -647,14 +789,34 @@ for i in range(10):
             buffer_str =str(tweet.text).split()
 
         #get into first tweet
-        if idx >= 0:
-                #m = buffer_str[0] + " podcast"
-                #print(m)
-                #print(tweet.id)
-                #print('tweet content : ' + str(tweet.text))
 
-                
+        if idx ==0:
+            sn = str()
+            try:
+                #user = api.get_user(tweet.id)
+                #user screen name
+                sn = tweet.user.screen_name
+                my_file = open('last_user.dat','w')
+                my_file.write(sn + " " + str(tweet.created_at))
+                my_file.close()
+            except tweepy.error.TweepError as e:
+                time.sleep(180)
+                #user screen name
+                sn = tweet.user.screen_name
+                my_file = open('last_user.dat','w')
+                my_file.write(sn + " " + str(tweet.created_at))
+                my_file.flush()
+                my_file.close()
+
+
+
+
+        if idx >=0:
+
+
+
                 #user info
+                #Get name
                 sn = str()
                 try:
                     #user = api.get_user(tweet.id)
@@ -662,68 +824,157 @@ for i in range(10):
                     sn = tweet.user.screen_name
                 except tweepy.error.TweepError as e:
                     time.sleep(180)
-                    
+
                     #user screen name
                     sn = tweet.user.screen_name
-                print(sn)
-                    
-                #print("sending recommendation to @" + str(sn))
+               # print(sn)
 
-                #get all twitter history from user
-                #all_tweets = get_user_tweets(sn)
-                #print("getting obama tweets")
-                
-                try:
-                    all_tweets = get_user_tweets('BarackObama')
-                except tweepy.error.TweepError as e:
-                    time.sleep(180)
-                    all_tweets = get_user_tweets('BarackObama')
-                
-                tfidf_urls, podcast_descriptions, max_vals_idx = get_from_tfidf('BarackObama');
-                
-                tfidf_buzz_words_urls = get_from_listen_notes(podcast_descriptions)
-                #lda_url = lda_words(descriptions,nbr_words=2)
-                
-                podcast_url = tfidf_urls[0] + " " + tfidf_urls[1] + " " +  tfidf_urls[2] + " "
-                if len(tfidf_buzz_words_urls) > 0:
-                    podcast_url = podcast_url  + tfidf_buzz_words_urls[0]
-                #url_hashtag,b,url_signal = get_from_hashtag(["BarackObama"] )
-                
-                m = "@" + sn + " listen to "  + podcast_url
-                #m = u"@" +sn + u" haha " + u'https://itunes.apple.com/us/podcast/ted-talks-daily/id160904630?mt=2&uo=4'
-                
-               
-                print(m)
-                #ok now notify user , case 1  : user has no much history
-                #all_tweets =range(15)
-                continue;
-                break;
-                if sn != "PFather101" and len(all_tweets) < 10:
+                #Get tweet info to check if it is a new tweet or an old one
+                timestamp_tweet = tweet.created_at
+                timestamp_tweet = pd.Timestamp(timestamp_tweet)
+                timestamp_tweet = timestamp_tweet.to_pydatetime()
+
+                check_stamp= different_timestamp(timestamp_tweet,finalstamp)
+
+                #Check if it is the last user from last batch
+                if sn == final_name and not check_stamp:
+                   # print("username " + str(sn) + " userstamp " + " " + str(timestamp_tweet) )
+                   # print('here')
+                    time.sleep(11.8);
+                    break;
+
+                #new tweet, send reply to user
+                else:
+		#New User Great
+
+
+                    print(" ********ATTENTION***********")
+                    print(" ")
+                    print(" ***New User: " + str(sn))
+                    print(" ")
+		
+                #get tweet, and friends from user
                     try:
-                        favorite_podcast =listen_notes_favorite()
-                        m = "@" + sn + " listen to "  + favorite_podcast
-                        s = api.update_status(m, tweet.id)
+                        all_friends,all_tweets = get_user_tweets(sn)
                     except tweepy.error.TweepError as e:
                         time.sleep(180)
-                        s = api.update_status(m, tweet.id)
-                    
-                    print("reply sent going to sleep")
-                    #time.sleep(1*60)
-                    print("awake")
+                        all_friends,all_tweets = get_user_tweets(sn)
 
-                #case 2 : user has history
-                if sn != "PFather101" and len(all_tweets) > 10:
-                    try:
-                        s = api.update_status(m, tweet.id)
-                    except tweepy.error.TweepError as e:
-                        time.sleep(180)
-                        s = api.update_status(m, tweet.id)  
-                    print("reply sent to @" + str(sn))
-                    print("reply sent going to sleep")
-                    #time.sleep(1*60)
-                    print("awake")
+
+                    # Too few Twitter activity by user
+                    # send most popular
+                    if sn != "PFather101" and len(all_tweets) < 12:
+                        print('*****Two Few Twitter Activity: Select most Popular Podcasts for user: ' + str(sn)) 
+                        try:
+                           # print("here")
+
+                            podcast_recommendations = listen_notes_favorite(3)
+                            m = "@" + sn + " listen "  + podcast_recommendations
+                            s = api.update_status(m, tweet.id)
+			    break;
+
+
+                        except tweepy.error.TweepError as e:
+                            time.sleep(180)
+                            podcast_recommendations = listen_notes_favorite(3)
+                            m = "@" + sn + " listen "  + podcast_recommendations
+                            s = api.update_status(m, tweet.id)
+			    break;
+
+
+
+                    ####In the following we try get podcast recommendation based on who Twitter posting, following, buzz words
+
+                    #Use tdidf to get podcasts basse on what they post
+                    print("******selecting recommendations based on Twitter Activity for user: " + str(sn))
+                    tfidf_urls, podcast_descriptions, max_vals_idx = get_from_tfidf(sn)
+                    favorite_podcast_url = listen_notes_favorite()
+
+
+
+                    #get podcasts basse on who they follow
+                    url_hashtag,hashtags,signal_hashtags = get_from_hashtag(all_friends)
+                    #get podcast based on buzz words
+
+                    buzzwords_urls = get_from_listen_notes(podcast_descriptions)
+
+
+                    #now create twittere message to user based on the podcast we obtained
+                    podcast_recommendations = str()
+                    podcast_recommendations_list = []
+
+                    #try those matching posting, else pick a popular one
+                    if len(tfidf_urls) > 0:
+
+                        for _podcast in tfidf_urls:
+                            podcast_recommendations = _podcast + " " + podcast_recommendations
+                            podcast_recommendations_list.append(_podcast)
+
+                    else:
+
+                        podcast_recommendations = listen_notes_favorite(3) + " " + podcast_recommendations
+
+
+                    #try those based on who the user is following, else pick a popular one
+
+                    if len(url_hashtag) > 0:
+
+                        podcast_recommendations = url_hashtag[0] + " " + podcast_recommendations
+                        podcast_recommendations_list.append(url_hashtag[0]);
+
+                    else:
+
+                        podcast_recommendations = listen_notes_favorite(1) + " " + podcast_recommendations
+
+
+                    #try those on buzz words in the pool of recommendations, else pick a popular one
+                    if len(buzzwords_urls) >0:
+
+                        podcast_recommendations = buzzwords_urls[0] + " " + podcast_recommendations
+                        podcast_recommendations_list.append(buzzwords_urls[0]);
+
+                    else:
+
+                        podcast_recommendations = listen_notes_favorite(1) + " " + podcast_recommendations
+
+
+                    #send tweet to user
+                    if len(podcast_recommendations_list) > 0:
+                        try:
+                            m = "@" + sn + " listen "  + podcast_recommendations
+                            s = api.update_status(m, tweet.id)
+                            print("sent following recommendations : " + str(sn))
+                            print(m)
+                        except tweepy.error.TweepError as e:
+                            time.sleep(180)
+                            m = "@" + sn + " listen "  + podcast_recommendations
+                            s = api.update_status(m, tweet.id)
+                            print("sent following recommendations : " + str(sn))
+                            print(m)
+
+                    #In case we did not find anything send most popular to user
+                    else:
+                        try:
+                            favorite_urls = listen_notes_favorite()
+                            m = "@" + sn + " listen "  + favorite_urls
+                            print("sent following recommendations : " + str(sn))
+                            s = api.update_status(m, tweet.id)
+                            print(m)
+
+                        except tweepy.error.TweepError as e:
+                            time.sleep(180)
+                            favorite_urls = listen_notes_favorite()
+                            m = "@" + sn + " listen "  + favorite_urls
+                            s = api.update_status(m, tweet.id)
+                            print("sent following recommendations : " + str(sn))
+                            print(m)
+
+
+
         idx= idx+1
-    print("going to sleep") 
-    time.sleep(5*60) 
-    time.sleep(5*60) 
-    time.sleep(5*60) 
+
+
+
+final_time = time.time()
+total_time = final_time - initial_time
+print("time per loop : " + str(total_time/8000.))  
