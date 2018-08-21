@@ -14,18 +14,26 @@ recommended podcasts episodes from the Listen Notes data base ((bot class in pod
 podcasts episodes on the Listen Notes database ((bot class in podfather.py)
 (v) Finally it sends the tweet with podcast recommendations to the user.
 
-To run tweetbot just run in the commandline:
+To run tweetbot just run in the command line:
 
->> python podfather.py
+python podfather.py
+
+**NOTE**: the podfather module depends on the data_processing.py and all.csv files.
 
 **bot directory: contains the bulk of the tweetbot infrastructire to perform LDA, TF-IDF 
   		 contained in the data_processing.py and podfather.py script**
 
 
 analysis -> counting the languages of the project
+
 api -> example notebook to connect to Listen Notes API
+
 lda -> LDA example notebook
+
 nmf -> non-negative factorization Calculations notebook (too slow)
+
 sql -> PosGres SQL transoformation notebook
+
 lag_analysis -> time_analysis.ipynb looks at estimates of response of the tweetbot ( worst case scenario is 20 seconds)
+
 url_cleaner ->  the url_cleaner.ipynb detects malfunctioning podcasts urls 
