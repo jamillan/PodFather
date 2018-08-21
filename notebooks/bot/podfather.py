@@ -7,15 +7,11 @@ import random
 import unirest
 
 
-CONSUMER_KEY = "HGsCa24B9jlGFiDpRaBemTyjj"
-CONSUMER_SECRET = "BA87yf8QyolGnTUmHEc07A1ZfnKbmHa6GfMRj3tBEJ8lWMFGPH"
-ACCESS_TOKEN = "1006801061754097664-I7ziYNHGJ3ydUPgtEP0wYEvTBYuWJz"
-ACCESS_TOKEN_SECRET = "Xz3kwLMXd7UYDpkyjNMfXn5ATnW3njLNVuybST3ci5v3k"
 
-#CONSUMER_KEY = "my CONSUMER_KEY"
-#CONSUMER_SECRET = "my CONSUMER_SECRET"
-#ACCESS_TOKEN = "my ACCESS TOKEN"
-#ACCESS_TOKEN_SECRET = "my ACCESS TOKEN SECRET" 
+CONSUMER_KEY = "my CONSUMER_KEY"
+CONSUMER_SECRET = "my CONSUMER_SECRET"
+ACCESS_TOKEN = "my ACCESS TOKEN"
+ACCESS_TOKEN_SECRET = "my ACCESS TOKEN SECRET" 
 
 
 auth = tweepy.OAuthHandler(CONSUMER_KEY, CONSUMER_SECRET)
@@ -172,7 +168,7 @@ class bot():
                     print(final_hash_signal)
                     response = unirest.get("https://listennotes.p.mashape.com/api/v1/search?genre_ids=68%2C110&language=English&len_max=50&len_min=2&offset=0&only_in=Only+search+in+these+fields&published_after=1390190241000&published_before=1490190241000&q=" + final_hash_signal + "&sort_by_date=0&type=episode",
                                 headers={
-                                "X-Mashape-Key": "2i4tvJvbnFmshAM8KCc4CZaPh7ejp1ZzKA0jsnVI8C398lRK4S",
+                                "X-Mashape-Key": "",
                                 "Accept": "application/json"
                                           }
                                         )
@@ -225,7 +221,7 @@ class bot():
 
         response = unirest.get("https://listennotes.p.mashape.com/api/v1/search?genre_ids=68%2C100&language=English&len_max=60&len_min=2&offset=0&only_in=Only+search+in+these+fields&published_after=1390190241000&published_before=1490190241000&q=" + final_string + "&sort_by_date=0&type=episode",
           headers={
-            "X-Mashape-Key": "2i4tvJvbnFmshAM8KCc4CZaPh7ejp1ZzKA0jsnVI8C398lRK4S",
+            "X-Mashape-Key": "",
             "Accept": "application/json"
           }
         )
@@ -246,7 +242,7 @@ class bot():
 				#find most popular podcast from listen notes
         response = unirest.get("https://listennotes.p.mashape.com/api/v1/best_podcasts?page=1",
                            headers={
-                           "X-Mashape-Key": "2i4tvJvbnFmshAM8KCc4CZaPh7ejp1ZzKA0jsnVI8C398lRK4S",
+                           "X-Mashape-Key": "",
                            "Accept": "application/json"
                            }
                            )
