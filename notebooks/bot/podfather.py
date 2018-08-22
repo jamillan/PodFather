@@ -8,10 +8,10 @@ import unirest
 
 
 
-CONSUMER_KEY = "my CONSUMER_KEY"
-CONSUMER_SECRET = "my CONSUMER_SECRET"
-ACCESS_TOKEN = "my ACCESS TOKEN"
-ACCESS_TOKEN_SECRET = "my ACCESS TOKEN SECRET" 
+CONSUMER_KEY = "MY CONSUMER_KEY"
+CONSUMER_SECRET = "MY CONSUMER_SECRET"
+ACCESS_TOKEN = "MY ACCESS TOKEN"
+ACCESS_TOKEN_SECRET = "MY ACCESS TOKEN SECRET"
 
 
 auth = tweepy.OAuthHandler(CONSUMER_KEY, CONSUMER_SECRET)
@@ -25,8 +25,15 @@ api = tweepy.API(auth,wait_on_rate_limit=True,wait_on_rate_limit_notify=True)
 tfidf_vectorizer = TfidfVectorizer(stop_words='english', max_df=0.7)
 tfidf_train = tfidf_vectorizer.fit_transform(data)
 
+
+# BOT class is in charge of deploying a podcast tweetbot. It listens to tweets of users and
+# proceeds to performs cosine similarity (TF-IDF), LDA, and
+# detection of user's friends to finally provide urls of podcasts that matched the sentiment
+# interests of users.
+
 class bot():
     
+    #constructor class
     def __init__(self, _tfidf_vectorizer= None):
             
 				#Check if TF_IDF has been created correctly
@@ -37,16 +44,16 @@ class bot():
         self. tfidf_vectorizer = _tfidf_vectorizer;
         
 		#Funtion To linearlize user tweets and use cosine similarity to find closest podcast to user tweet
-    def get_from_tfidf(self,user ='kanyewest'):
+    def get_from_tfidf(self,user ='kanyewest',nbr_tweets = 3):
 
-        #get 10 usertwets and linearize
+        #get 10 usertwets and linearize them
         user_tweets = pd.read_csv(user + '_tweets.csv')
         user_tweets = user_tweets.text.values[:10]
 
-
+        #vectorize the user's tweets
         all_X_test = tfidf_vectorizer.transform(user_tweets)
 
-				#weigh tweets based on how new they are
+        #weigh tweets based on how new they are
         weights = range(1,len(all_X_test.A));
         weights = sorted(weights,reverse=True)
 
@@ -54,6 +61,7 @@ class bot():
         X_test = tfidf_vectorizer.transform(user_tweets)
         final_vect = X_test[0]
 
+        #container of podcasts descriptions, podcasts ulrs  and podcast infor
         podcast_descriptions = []
         final_urls = []
         all_pod_candidates = []
@@ -77,12 +85,14 @@ class bot():
             for idx in max_vals_idx:
                 podcast_descriptions.append(data[idx])
 
+            #localize the information of tweets
             urls  = final_df.loc[max_vals_idx].website_url.values.tolist()
             all_pod_candidates  = all_pod_candidates + urls
             all_pod_descriptions = all_pod_descriptions + final_df.loc[max_vals_idx].content2.values.tolist()
             final_urls = final_urls + random.sample(urls,5)
 
-        final_pods = random.sample(final_urls,3)
+        #select recommendations and administer information of it
+        final_pods = random.sample(final_urls,nbr_tweets)
         print("Pocast Match based on Twitter Posting: " + '\n')
         for idx,_final_url in enumerate(final_pods):
             print("Match Number " + str(idx) +' :' + '\n')
@@ -96,11 +106,13 @@ class bot():
     
     def get_from_hashtag(self,all_hashtags):
 
-				#this functions looks at who the user is following and connects to
-				#listen notes to check if it can find a podcast based who the user is 
-				# following
+        #this functions looks at who the user is following and connects to
+        #listen notes to check if it can find a podcast based who the user is
+        # following
 
-        #decompose the user' friends name into two tokens 
+        #decompose the user' friends name into two tokens based on the assumption
+        # that friends' names are two joined Capitalized tokens each.
+        
         all_bi_tokens = []
         for h_tag in all_hashtags:
 
@@ -114,14 +126,16 @@ class bot():
             random.shuffle(all_bi_tokens)
 
         else:
+            #If we are here we did not find bitokens
+            #the tweetbot handles this circumstance by submitting popular podcasts
             return [],None,None
 
 
 
 
         for i in range(len(all_bi_tokens)):
-
-
+            
+            #
             hash_signal = all_bi_tokens[i]
             final_hash_signal = hash_signal[0]
             h_tag_user = "@" + hash_signal[0]
@@ -133,14 +147,15 @@ class bot():
                 h_tag_user = h_tag_user + hash_signal[j]
                 check_hash = check_hash + hash_signal[j]
 
-						#print candidate celebrity
+            #print candidate celebrity
             print(check_hash)
-						#check if this is a celebrity and then connect to listen notes 
+            #check if this is a celebrity and then connect to listen notes
 						
-
+            #If we have a name of a potential celebrity
+            #check first that it is a celebrity and connect to his/her account
             if check_hash in all_hashtags:
 
-
+            #check how many friends he/she has
                 try:
 
                     user = api.get_user(h_tag_user)
@@ -150,7 +165,7 @@ class bot():
                     time.sleep(180)
                     user = api.get_user(h_tag_user)
                 try:
-
+                    #nbr of frinds
                     nbr_friends = user.followers_count
 
 
@@ -159,12 +174,16 @@ class bot():
                     time.sleep(180)
                     nbr_friends = user.followers_count
 
-								
+                #celebrity?
                 if nbr_friends < 3000:
+                    #if not then look for another target friend
                     print('not celebrity')
                     continue;
 
                 else:
+                    
+                    #if so then connect to Listen Notes and extract a podcast episode from this celebrity
+                    #blindly trust Listen Notes
                     print(final_hash_signal)
                     response = unirest.get("https://listennotes.p.mashape.com/api/v1/search?genre_ids=68%2C110&language=English&len_max=50&len_min=2&offset=0&only_in=Only+search+in+these+fields&published_after=1390190241000&published_before=1490190241000&q=" + final_hash_signal + "&sort_by_date=0&type=episode",
                                 headers={
@@ -175,7 +194,7 @@ class bot():
 
                     listen_notes_pods = response.body['results']
 
-
+                    #if we have a connection then return url results
                     response_listen_notes=[]
                     if len(listen_notes_pods)> 0:
                         print('found')
@@ -194,12 +213,13 @@ class bot():
                 continue;
 
 
-        #if we here we did not find anything
+        #if we here we did not find any celebrity
+        #
         return [],None,None  
     
     def get_from_listen_notes(self, descriptions):
-				#find most common words 'buzz words' and connect 
-				#to listen notes to find podcast with combination of common words
+        #find most common words 'buzz words' and connect
+        #to listen notes to find podcast with combination of common words
 
         Xtr = tfidf_vectorizer.transform(descriptions)
         features = tfidf_vectorizer.get_feature_names()
@@ -239,7 +259,7 @@ class bot():
     
     def listen_notes_favorite(self, n='All'):
         #These code snippets use an open-source library. http://unirest.io/python
-				#find most popular podcast from listen notes
+        #find most popular podcast from listen notes
         response = unirest.get("https://listennotes.p.mashape.com/api/v1/best_podcasts?page=1",
                            headers={
                            "X-Mashape-Key": "",
@@ -287,7 +307,7 @@ class bot():
         #initial_time = time.time()
 
         while True:
-            #   if i%1309 ==0:
+            #Check after some time how much loops are performed in 4 hours
             if nbr_loops % 1309==0:
                 
                 #print("loop: " + str(i))
@@ -295,7 +315,7 @@ class bot():
             
             nbr_loops += 1;
          
-				 		#Read timeline
+            #Read timeline
             try:
                 #loop_initial_time = time.time()
                 public_tweets = api.mentions_timeline(count=10)
@@ -315,12 +335,12 @@ class bot():
                 #time_file.flush()
                 #time_file.close()
             
-						#Check who was the last user
+            #Check who was the last user
             final_name,finalstamp = get_last_user()
             
-						#look at the tweets sent to the tweetbot
-						#It will stop once it finds the last user/sender
-
+            #look through the tweets sent to the tweetbot
+            #It will stop once it finds the last user/sender
+            
             for idx,tweet in enumerate(public_tweets):
                 
                 #print("found tweet :" + str(idx))
@@ -336,7 +356,7 @@ class bot():
                     buffer_str =str(tweet.text).split()
                 
                 #get into first tweet
-								#and store the timestamp to find out who was the last user                
+                #and store the timestamp to find out who was the last user
                 if idx ==0:
                     sn = str()
                     try:
@@ -429,18 +449,24 @@ class bot():
                         #Use tdidf to get podcasts basse on what they post
                         print("******selecting recommendations based on Twitter Activity for user: " + str(sn))
                         print(" ")
+                        
+                        #In the following we use the LP infrastructure to select the tweets for recommendations
+                        
+                        #First use TF-IDF
                         tfidf_urls, podcast_descriptions, max_vals_idx = self.get_from_tfidf(sn)
                         favorite_podcast_url = self.listen_notes_favorite()
 
+                        #Now Use the celebrities the user follows
                         #get podcasts basse on who they follow
                         #url_hashtag,hashtags,signal_hashtags = get_from_hashtag(all_friends)
                         url_hashtag,hashtags,signal_hashtags = self.get_from_hashtag(all_friends)
                             #get podcast based on buzz words
 
+                        # Now select those based on Buzz Words
                         buzzwords_urls = self.get_from_listen_notes(podcast_descriptions)
 
 
-                        #now create twittere message to user based on the podcast we obtained
+                        #now create twitter message to user based on the podcast we obtained
                         podcast_recommendations = str()
                         podcast_recommendations_list = []
 
@@ -452,6 +478,7 @@ class bot():
                                     podcast_recommendations = _podcast + " " + podcast_recommendations
                                     podcast_recommendations_list.append(_podcast)
                                 
+                                #Dealing with potential Errors
                                 except TypeError:
                                     _podcast_rec = self.listen_notes_favorite(1)
                                     podcast_recommendations = _podcast_rec + " " + podcast_recommendations
@@ -459,6 +486,7 @@ class bot():
 
                         else:
                             
+                            #If we here NLP did not find anything so send the user a popular podcast
                             _podcast_rec = self.listen_notes_favorite(3)
                             podcast_recommendations = _podcast_rec + " " + podcast_recommendations
                             podcast_recommendations_list.append(_podcast_rec);
@@ -472,12 +500,15 @@ class bot():
                             try:
                                 podcast_recommendations = url_hashtag[0] + " " + podcast_recommendations
                                 podcast_recommendations_list.append(url_hashtag[0]);
+                            
+                            #Dealing with potential Errors
                             except TypeError:
                                 _podcast_rec = self.listen_notes_favorite(1)
                                 podcast_recommendations = _podcast_rec + " " + podcast_recommendations
                                 podcast_recommendations_list.append(_podcast_rec);
                         else:
                             
+                            #If we here NLP did not find anything so send the user a popular podcast
                             _podcast_rec = self.listen_notes_favorite(1)
                             podcast_recommendations = _podcast_rec + " " + podcast_recommendations
                             podcast_recommendations_list.append(_podcast_rec);
@@ -488,16 +519,22 @@ class bot():
                             try:
                                 podcast_recommendations = buzzwords_urls[0] + " " + podcast_recommendations
                                 podcast_recommendations_list.append(buzzwords_urls[0]);
+                            #Dealing with potential Errors
                             except TypeError:
+                                
                                 _podcast_rec = self.listen_notes_favorite(1)
                                 podcast_recommendations = _podcast_rec + " " + podcast_recommendations
                                 podcast_recommendations_list.append(_podcast_rec);
                         else:
-                            
+                            #If we here NLP did not find anything so send the user a popular podcast
                             _podcast_rec = self.listen_notes_favorite(1)
                             podcast_recommendations = _podcast_rec + " " + podcast_recommendations
                             podcast_recommendations_list.append(_podcast_rec);
 
+
+                        #***Sending Reply To User******************
+                        #***Sending Reply To User******************
+                        #***Sending Reply To User******************
 
                         if len(podcast_recommendations_list) > 0:
                             try:
@@ -541,6 +578,8 @@ class bot():
 
 if __name__ == "__main__":
 
+        # This is an example of how to run the podfather once this module has
+        # been imported to local enviroment
 		print('Creating Tweetbot')
 
 		
