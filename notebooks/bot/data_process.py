@@ -75,6 +75,16 @@ new_df = pd.DataFrame({'content':df.iloc[:,dict_num_colnames['description']],
 
 print('*****Successs :loading podcast data frame (all.csv) ......')
 print('')
+
+print("Erasing URL that throw and Error like 404 ")
+
+
+url_bad = np.genfromtxt('bad_ids.txt')
+url_bad = url_bad - 1
+url_bad= list(np.array(url_bad,dtype = int))
+new_df =new_df.loc[:].drop(url_bad)
+new_df= new_df.reset_index(drop=True)
+
 # Store the ids of english files (good ids list)
 
 bad_ids= []
@@ -134,6 +144,7 @@ new_index = [i for i in range(size)]
 final_df.index = new_index
 print("total number of podcast: " + str(len(new_data)))
 
+quit()
 #data = new_df.content[:50].values.tolist()
 
 
